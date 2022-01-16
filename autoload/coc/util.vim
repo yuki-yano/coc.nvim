@@ -364,7 +364,8 @@ function! coc#util#get_complete_option()
         \ 'changedtick': b:changedtick,
         \ 'blacklist': get(b:, 'coc_suggest_blacklist', []),
         \ 'disabled': get(b:, 'coc_disabled_sources', []),
-        \ 'indentkeys': coc#util#get_indentkeys()
+        \ 'indentkeys': coc#util#get_indentkeys(),
+        \ 'completeMenu': get(g:, 'coc_completion_menu', '')
         \}
 endfunction
 

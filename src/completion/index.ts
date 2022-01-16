@@ -83,6 +83,12 @@ export class Completion implements Disposable {
       this.cancelResolve()
       await this.onCompleteDone(item)
     }, this, this.disposables)
+    events.on('PumCompleteDone', async item => {
+      if (!this.activated) return
+      fn.clear()
+      this.cancelResolve()
+      await this.onCompleteDone(item)
+    }, this, this.disposables)
     this.cancelResolve()
     events.on('MenuPopupChanged', ev => {
       if (!this.activated || this.isCommandLine) return
@@ -245,7 +251,8 @@ export class Completion implements Disposable {
       }
       return obj
     })
-    nvim.call('coc#_do_complete', [col, vimItems, preselect], true)
+    const skip = option.completeMenu === 'pum.vim' && await this.nvim.call("pum#skip_complete") as boolean
+    nvim.call('coc#_do_complete', [col, vimItems, preselect, skip], true)
   }
 
   private async _doComplete(option: CompleteOption): Promise<void> {
@@ -429,7 +436,7 @@ export class Completion implements Disposable {
     // Wait possible TextChangedI
     await wait(50)
     if (this.insertCharTs != timestamp || this.insertLeaveTs != insertLeaveTs) return
-    let [visible, lnum, pre] = await this.nvim.eval(`[pumvisible(),line('.'),strpart(getline('.'), 0, col('.') - 1)]`) as [number, number, string]
+    let [visible, lnum, pre] = await this.nvim.eval(`[${resolvedItem.completionMenu === 'pum.vim' ? 'pum#visible' : 'pumvisible'}(),line('.'),strpart(getline('.'), 0, col('.') - 1)]`) as [number, number, string]
     if (visible || lnum != opt.linenr || this.activated || !pre.endsWith(resolvedItem.word)) return
     await document.patchChange(true)
     await this.doCompleteDone(resolvedItem, opt)

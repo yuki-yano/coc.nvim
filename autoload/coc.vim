@@ -48,28 +48,48 @@ function! coc#_insert_key(method, key, ...) abort
 endfunction
 
 function! coc#_complete() abort
-  let items = get(g:coc#_context, 'candidates', [])
+  if get(g:, 'coc_completion_menu', '') !=# 'pum.vim' || !s:pumvisible()
+    let items = get(g:coc#_context, 'candidates', [])
+  endif
   let preselect = get(g:coc#_context, 'preselect', -1)
   let startcol = g:coc#_context.start + 1
   if s:select_api && len(items) && preselect != -1
-    noa call complete(startcol, items)
+    if get(g:, 'coc_completion_menu', '') ==# 'pum.vim'
+      noa call pum#open(startcol - 1, items)
+    else
+      noa call complete(startcol, items)
+    endif
     call nvim_select_popupmenu_item(preselect, v:false, v:false, {})
     " use <cmd> specific key to preselect item at once
     call feedkeys("\<Cmd>\<CR>" , 'i')
   else
-    call complete(startcol, items)
+    if get(g:, 'coc_completion_menu', '') ==# 'pum.vim'
+      noa call pum#open(startcol, items)
+    else
+      call complete(startcol, items)
+    endif
   endif
   return ''
 endfunction
 
-function! coc#_do_complete(start, items, preselect)
-  let g:coc#_context = {
-        \ 'start': a:start,
-        \ 'candidates': a:items,
-        \ 'preselect': a:preselect
-        \}
-  if mode() =~# 'i' && &paste != 1
+function! coc#_do_complete(start, items, preselect, skip)
+  if !a:skip
+    let g:coc#_context = {
+          \ 'start': a:start,
+          \ 'candidates': a:items,
+          \ 'preselect': a:preselect
+          \}
+  endif
+  if mode() =~# 'i' && &paste != 1 && !a:skip
     call feedkeys("\<Plug>CocRefresh", 'i')
+  endif
+endfunction
+
+function! s:pumvisible() abort
+  if get(g:, 'coc_completion_menu', '') ==# 'pum.vim'
+    return pum#visible()
+  else
+    return pumvisible()
   endif
 endfunction
 
@@ -80,25 +100,25 @@ function! coc#_select_confirm() abort
   let selected = complete_info()['selected']
   if selected != -1
      return "\<C-y>"
-  elseif pumvisible()
+  elseif s:pumvisible()
     return "\<down>\<C-y>"
   endif
   return ''
 endfunction
 
 function! coc#_selected()
-  if !pumvisible() | return 0 | endif
+  if !s:pumvisible() | return 0 | endif
   return coc#rpc#request('hasSelected', [])
 endfunction
 
 function! coc#_hide() abort
-  if !pumvisible() | return | endif
+  if !s:pumvisible() | return | endif
   call feedkeys("\<C-e>", 'in')
 endfunction
 
 function! coc#_cancel()
   " hack for close pum
-  if pumvisible()
+  if s:pumvisible()
     let g:coc#_context = {'start': 0, 'preselect': -1,'candidates': []}
     call feedkeys("\<Plug>CocRefresh", 'i')
     call coc#rpc#notify('stopCompletion', [])
@@ -106,7 +126,7 @@ function! coc#_cancel()
 endfunction
 
 function! coc#_select() abort
-  if !pumvisible() | return | endif
+  if !pumvisible() && !pum#visible() | return | endif
   call feedkeys("\<C-y>", 'in')
 endfunction
 
